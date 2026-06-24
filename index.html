@@ -1,1 +1,545 @@
-new
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Engineering Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.2/math.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+  --bg:        #f5f0e8;
+  --surface:   #ede6d6;
+  --panel:     #e8dfd0;
+  --border:    #d4b8c0;
+  --accent:    #c9848f;
+  --accent2:   #a0677a;
+  --warn:      black;
+  --danger:    #c9848f;
+  --text:      #3d2b1f;
+  --muted:     #c4a882;
+
+  --btn-ops:   #f2c4ce;
+  --btn-fn:    #d4c5e2;
+  --btn-num:   #f2e8df;
+  --btn-eq:    #a0677a;
+  --btn-eq-h:  #c9848f;
+
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-ui:   'Inter', sans-serif;
+}
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .calc-wrapper {
+    width: 100%;
+    max-width: 480px;
+  }
+
+  /* ── Header ── */
+  .calc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .calc-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .mode-toggle {
+    display: flex;
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px;
+  }
+  .mode-btn {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 4px 10px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .mode-btn.active {
+    background: var(--accent);
+    color: #000;
+  }
+
+  /* ── Display ── */
+  .display {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .display::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+  .display-history {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+    text-align: right;
+    min-height: 18px;
+    margin-bottom: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .display-main {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    text-align: right;
+    color: var(--text);
+    line-height: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: font-size 0.1s;
+  }
+  .display-main.small  { font-size: 26px; }
+  .display-main.xsmall { font-size: 18px; }
+  .display-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .angle-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    padding: 2px 8px;
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    color: var(--accent);
+  }
+  .mem-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--warn);
+    letter-spacing: 0.1em;
+  }
+
+  /* ── Button Grid ── */
+  .grid {
+    display: grid;
+    gap: 4px;
+  }
+  .grid-sci  { grid-template-columns: repeat(5, 1fr); }
+  .grid-main { grid-template-columns: repeat(4, 1fr); }
+  .grid-main { margin-top: 6px; }
+
+  button.btn {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 14px 6px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.1s, transform 0.05s, border-color 0.1s;
+    position: relative;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    letter-spacing: 0.03em;
+
+  }
+      .grid-sci .btn {
+    padding: 10px 4px;
+    font-size: 12px;
+}
+  button.btn:active { transform: scale(0.93); }
+
+  .btn-num  { background: var(--btn-num);  color: var(--text); }
+  .btn-ops  { background: var(--btn-ops);  color: var(--accent2); }
+  .btn-fn   { background: var(--btn-fn);   color: var(--warn);   font-size: 11px; }
+  .btn-mem  { background: var(--btn-fn);   color: #a78bfa;       font-size: 11px; }
+  .btn-clr  { background: #2a1515;         color: var(--danger); }
+  .btn-eq   { background: var(--btn-eq);   color: var(--accent); }
+  .btn-eq:hover  { background: var(--btn-eq-h); }
+  .btn-zero { grid-column: span 2; }
+
+  .btn-num:hover  { background: #252d3d; border-color: var(--accent2); }
+  .btn-ops:hover  { background: #263040; border-color: var(--accent2); }
+  .btn-fn:hover   { background: #21293a; border-color: var(--warn); }
+  .btn-mem:hover  { background: #21293a; border-color: #a78bfa; }
+  .btn-clr:hover  { background: #3a1b1b; }
+
+  /* 2nd-mode highlight */
+  .btn-fn.second-active { border-color: var(--warn); background: #2a2010; }
+
+  /* ── Separator ── */
+  .sep {
+    height: 1px;
+    background: var(--border);
+    margin: 6px 0;
+  }
+
+  /* ── Error flash ── */
+  @keyframes flashErr {
+    0%,100% { border-color: var(--border); }
+    50%      { border-color: var(--danger); }
+  }
+  .display.error { animation: flashErr 0.4s ease; }
+</style>
+</head>
+<body>
+<div class="calc-wrapper">
+
+  <div class="calc-header">
+    <span class="calc-title">Eng · Calc · v2</span>
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="modeDeg" onclick="setAngle('DEG')">DEG</button>
+      <button class="mode-btn"        id="modeRad" onclick="setAngle('RAD')">RAD</button>
+      <button class="mode-btn"        id="modeGrad" onclick="setAngle('GRAD')">GRAD</button>
+    </div>
+  </div>
+
+  <div class="display" id="display">
+    <div class="display-history" id="history"></div>
+    <div class="display-main"   id="mainDisplay">0</div>
+    <div class="display-meta">
+      <span class="angle-badge" id="angleBadge">DEG</span>
+      <span class="mem-badge"   id="memBadge"></span>
+    </div>
+  </div>
+
+  <!-- Scientific row -->
+  <div class="grid grid-sci" id="sciGrid">
+    <button class="btn btn-fn" onclick="toggleSecond()" id="btn2nd">2nd</button>
+    <button class="btn btn-fn" onclick="sciFn('sin')"   id="btnSin">sin</button>
+    <button class="btn btn-fn" onclick="sciFn('cos')"   id="btnCos">cos</button>
+    <button class="btn btn-fn" onclick="sciFn('tan')"   id="btnTan">tan</button>
+    <button class="btn btn-fn" onclick="sciFn('log')"   id="btnLog">log</button>
+
+    <button class="btn btn-mem" onclick="memOp('MC')">MC</button>
+    <button class="btn btn-mem" onclick="memOp('MR')">MR</button>
+    <button class="btn btn-mem" onclick="memOp('M+')">M+</button>
+    <button class="btn btn-mem" onclick="memOp('M-')">M−</button>
+    <button class="btn btn-fn"  onclick="sciFn('ln')">ln</button>
+
+    <button class="btn btn-fn" onclick="sciFn('sqrt')">√x</button>
+    <button class="btn btn-fn" onclick="sciFn('cbrt')">∛x</button>
+    <button class="btn btn-fn" onclick="sciFn('sq')" >x²</button>
+    <button class="btn btn-fn" onclick="sciFn('cube')">x³</button>
+    <button class="btn btn-fn" onclick="sciFn('inv')">1/x</button>
+
+    <button class="btn btn-fn" onclick="sciFn('pow10')">10^x</button>
+    <button class="btn btn-fn" onclick="sciFn('exp')" >e^x</button>
+    <button class="btn btn-fn" onclick="sciFn('fact')">n!</button>
+    <button class="btn btn-fn" onclick="sciFn('abs')">|x|</button>
+<button class="btn btn-fn" onclick="sciFn('pi')">π</button>
+<button class="btn btn-fn" onclick="appendSci()">EXP</button>
+<button class="btn btn-fn" onclick="useAns()">ANS</button>
+<button class="btn btn-fn" onclick="appendParen('(')">(</button>
+<button class="btn btn-fn" onclick="appendParen(')')">)</button>
+<button class="btn btn-fn" onclick="clearEntry()">CE</button>
+
+  </div>
+  
+
+  <div class="sep"></div>
+
+  <!-- Main grid -->
+  <div class="grid grid-main">
+    <button class="btn btn-clr" onclick="clearAll()">AC</button>
+    <button class="btn btn-ops" onclick="toggleSign()">+/−</button>
+    <button class="btn btn-ops" onclick="percent()">%</button>
+    <button class="btn btn-ops" onclick="appendOp('/')">÷</button>
+
+    <button class="btn btn-num" onclick="appendNum('7')">7</button>
+    <button class="btn btn-num" onclick="appendNum('8')">8</button>
+    <button class="btn btn-num" onclick="appendNum('9')">9</button>
+    <button class="btn btn-ops" onclick="appendOp('*')">×</button>
+
+    <button class="btn btn-num" onclick="appendNum('4')">4</button>
+    <button class="btn btn-num" onclick="appendNum('5')">5</button>
+    <button class="btn btn-num" onclick="appendNum('6')">6</button>
+    <button class="btn btn-ops" onclick="appendOp('-')">−</button>
+
+    <button class="btn btn-num" onclick="appendNum('1')">1</button>
+    <button class="btn btn-num" onclick="appendNum('2')">2</button>
+    <button class="btn btn-num" onclick="appendNum('3')">3</button>
+    <button class="btn btn-ops" onclick="appendOp('+')">+</button>
+
+    <button class="btn btn-num btn-zero" onclick="appendNum('0')">0</button>
+    <button class="btn btn-num" onclick="appendDot()">.</button>
+    <button class="btn btn-eq"  onclick="calculate()">=</button>
+  </div>
+</div>
+
+
+<script>
+  function appendSci() {
+  display += 'e';
+  render();
+}
+function useAns() {
+  display = fmt(lastAnswer);
+  render();
+}
+let lastAnswer = 0;
+/* ── State ── */
+  let display       = '0';
+  let expression    = '';
+  let justCalc      = false;
+  let secondMode    = false;
+  let angleMode     = 'DEG';   // DEG | RAD | GRAD
+  let memory        = 0;
+  let memHasVal     = false;
+
+  /* ── Angle helpers ── */
+  function toRad(x) {
+    if (angleMode === 'RAD')  return x;
+    if (angleMode === 'GRAD') return x * Math.PI / 200;
+    return x * Math.PI / 180;
+  }
+  function fromRad(x) {
+    if (angleMode === 'RAD')  return x;
+    if (angleMode === 'GRAD') return x * 200 / Math.PI;
+    return x * 180 / Math.PI;
+  }
+
+  /* ── Factorial ── */
+  function factorial(n) {
+    n = Math.round(n);
+    if (n < 0) return NaN;
+    if (n === 0 || n === 1) return 1;
+    if (n > 170) return Infinity;
+    let r = 1; for (let i = 2; i <= n; i++) r *= i;
+    return r;
+  }
+
+  /* ── Render ── */
+  function render() {
+    const el = document.getElementById('mainDisplay');
+    el.textContent = display;
+    const len = display.length;
+    el.className = 'display-main' +
+      (len > 18 ? ' xsmall' : len > 12 ? ' small' : '');
+    document.getElementById('history').textContent = expression;
+    document.getElementById('memBadge').textContent = memHasVal ? 'M' : '';
+  }
+
+  /* ── Input ── */
+  function appendNum(n) {
+    if (justCalc) { display = ''; expression = ''; justCalc = false; }
+    if (display === '0' && n !== '.') display = n;
+    else if (display.length < 16) display += n;
+    render();
+  }
+  function appendDot() {
+    if (justCalc) { display = '0'; expression = ''; justCalc = false; }
+    if (!display.includes('.')) display += '.';
+    render();
+  }
+  
+
+  /* ── Operator state ── */
+  
+  function appendOp(op) {
+
+  if (justCalc) {
+    justCalc = false;
+  }
+
+  expression += display + op;
+
+  display = '0';
+
+  render();
+}
+
+  function calculate() {
+
+  try {
+
+    const fullExpression = expression + display;
+
+    const result = math.evaluate(fullExpression);
+
+    expression = fullExpression + ' =';
+
+    display = fmt(result);
+
+    justCalc = true;
+
+    render();
+
+  } catch {
+
+    showError('Math Error');
+
+  }
+}
+
+  function fmt(n) {
+    if (!isFinite(n)) return isNaN(n) ? 'Error' : (n > 0 ? '∞' : '-∞');
+    // Avoid floating-point noise
+    let s = parseFloat(n.toPrecision(12)).toString();
+    return s;
+  }
+
+  function clearAll() {
+    display = '0'; expression = '';
+    calcOp = null; calcLeft = null; justCalc = false;
+    render();
+  }
+
+  function toggleSign() {
+    display = fmt(-parseFloat(display));
+    render();
+  }
+
+  function percent() {
+    display = fmt(parseFloat(display) / 100);
+    render();
+  }
+
+  /* ── Scientific ── */
+  function sciFn(fn) {
+    let x = parseFloat(display);
+    let result;
+    // 2nd-mode swaps
+    const fnMap = secondMode ? {
+      sin: 'asin', cos: 'acos', tan: 'atan',
+      log: 'pow10', ln: 'exp',
+      sqrt: 'sq', cbrt: 'cube',
+    } : {};
+    fn = fnMap[fn] || fn;
+
+    switch(fn) {
+      case 'sin':   result = Math.sin(toRad(x));  break;
+      case 'cos':   result = Math.cos(toRad(x));  break;
+      case 'tan':   result = Math.tan(toRad(x));  break;
+      case 'asin':  result = isNaN(x) || Math.abs(x)>1 ? NaN : fromRad(Math.asin(x)); break;
+      case 'acos':  result = isNaN(x) || Math.abs(x)>1 ? NaN : fromRad(Math.acos(x)); break;
+      case 'atan':  result = fromRad(Math.atan(x)); break;
+      case 'log':   result = x <= 0 ? NaN : Math.log10(x); break;
+      case 'ln':    result = x <= 0 ? NaN : Math.log(x); break;
+      case 'pow10': result = Math.pow(10, x); break;
+      case 'exp':   result = Math.exp(x); break;
+      case 'sqrt':  result = x < 0 ? NaN : Math.sqrt(x); break;
+      case 'cbrt':  result = Math.cbrt(x); break;
+      case 'sq':    result = x * x; break;
+      case 'cube':  result = x * x * x; break;
+      case 'inv':   result = x === 0 ? NaN : 1 / x; break;
+      case 'fact':  result = factorial(x); break;
+      case 'abs':   result = Math.abs(x); break;
+      case 'pi':    display = fmt(Math.PI); render(); return;
+    }
+    if (isNaN(result)) { showError('Math Error'); return; }
+    expression = fn + '(' + display + ') =';
+    display = fmt(result);
+    justCalc = true;
+    if (secondMode) toggleSecond();
+    render();
+  }
+
+  /* ── 2nd mode ── */
+  function toggleSecond() {
+    secondMode = !secondMode;
+    const b = document.getElementById('btn2nd');
+    b.classList.toggle('second-active', secondMode);
+    const map = {
+      btnSin: ['sin','sin⁻¹'], btnCos: ['cos','cos⁻¹'],
+      btnTan: ['tan','tan⁻¹'], btnLog: ['log','10^x'],
+    };
+    for (const [id, [off, on]] of Object.entries(map)) {
+      document.getElementById(id).textContent = secondMode ? on : off;
+    }
+  }
+
+  /* ── Angle mode ── */
+  function setAngle(m) {
+    angleMode = m;
+    ['DEG','RAD','GRAD'].forEach(a =>
+      document.getElementById('mode'+a[0]+a.slice(1).toLowerCase()).classList
+        .toggle('active', a === m)
+    );
+    document.getElementById('angleBadge').textContent = m;
+  }
+
+  /* ── Memory ── */
+  function memOp(op) {
+    const v = parseFloat(display);
+    switch(op) {
+      case 'MC': memory = 0; memHasVal = false; break;
+      case 'MR': display = fmt(memory); justCalc = true; break;
+      case 'M+': memory += v; memHasVal = true; break;
+      case 'M-': memory -= v; memHasVal = true; break;
+    }
+    render();
+  }
+
+  /* ── Error ── */
+  function showError(msg) {
+    display = msg;
+    expression = '';
+    justCalc = true;
+    const el = document.getElementById('display');
+    el.classList.add('error');
+    setTimeout(() => el.classList.remove('error'), 400);
+    render();
+  }
+
+  /* ── Keyboard ── */
+  document.addEventListener('keydown', e => {
+    if (e.key >= '0' && e.key <= '9') appendNum(e.key);
+    else if (e.key === '.') appendDot();
+    else if (['+','-','*','/'].includes(e.key)) appendOp(e.key);
+    else if (e.key === 'Enter' || e.key === '=') calculate();
+    else if (e.key === 'Backspace') {
+
+  if (
+    display === 'Math Error' ||
+    display === 'Div by zero' ||
+    display === 'Error'
+  ) {
+    display = '0';
+  } else {
+    display = display.length > 1
+      ? display.slice(0,-1)
+      : '0';
+  }
+
+  render();
+}
+    else if (e.key === 'Escape') clearAll();
+  });
+
+  /* ── Boot ── */
+  render();
+</script>
+</body>
+</html>
